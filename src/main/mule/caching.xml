@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:os="http://www.mulesoft.org/schema/mule/os" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/os http://www.mulesoft.org/schema/mule/os/current/mule-os.xsd">
+	<http:listener-config name="HTTP_Listener_config" doc:name="HTTP Listener config" doc:id="a3563e70-16e8-4780-a493-f89539125501" >
+		<http:listener-connection host="0.0.0.0" port="${http.port}" />
+	</http:listener-config>
+	<db:config name="Database_Config" doc:name="Database Config" doc:id="8585576d-07f5-494a-a13e-8dbac2e0b69e" >
+		<db:my-sql-connection host="sql12.freemysqlhosting.net" port="3306" user="sql12302276" password="wUdNkjWFKE" database="sql12302276" />
+	</db:config>
+	<ee:object-store-caching-strategy name="Caching_Strategy" doc:name="Caching Strategy" doc:id="c7a3526b-9ea6-40f2-bfc9-90d2df0e2865" keyGenerationExpression="#[attributes.queryParams.destination]" >
+		<os:private-object-store alias="dbCache" persistent="false" maxEntries="10000" entryTtl="30" expirationInterval="2" expirationIntervalUnit="SECONDS" />
+	</ee:object-store-caching-strategy>
+	<flow name="cachingFlow" doc:id="d8e0578c-3eca-4935-a96f-5c4c0a9d074a" >
+		<http:listener doc:name="Listener" doc:id="ae3e2f71-2f70-4f4a-9cae-a18b0eb2ba3e" config-ref="HTTP_Listener_config" path="/caching" allowedMethods="GET"/>
+		<ee:cache doc:name="Cache" doc:id="b804cb88-486f-4c00-84c4-04396845c0b7" cachingStrategy-ref="Caching_Strategy">
+			<db:select doc:name="Select" doc:id="78386eec-6c17-4c04-a00f-96fed8d0a0b6" config-ref="Database_Config">
+			<db:sql>select * from american where toAirport = :DEST</db:sql>
+			<db:input-parameters><![CDATA[#[{ DEST: attributes.queryParams.destination }]]]></db:input-parameters>
+		</db:select>
+			<logger level="INFO" doc:name="Logger" doc:id="8cf6b11d-e987-4727-bb56-0777f216d4b9" message="DB has been hit"/>
+		</ee:cache>
+		<ee:transform doc:name="Transform Message" doc:id="b459d5a8-3c2c-474d-81fc-f813ce04cf4f" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+	</flow>
+</mule>
